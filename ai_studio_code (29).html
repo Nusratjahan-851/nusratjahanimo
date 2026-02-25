@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>My Web App (Imo Clone)</title>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Basic Reset */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: #f0f2f5; display: flex; justify-content: center; height: 100vh; overflow: hidden; }
+        
+        /* App Container (Mobile size on desktop) */
+        #app { width: 100%; max-width: 450px; background-color: #ffffff; height: 100%; position: relative; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        
+        /* --- HOME SCREEN CSS --- */
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-bottom: 1px solid #eee; }
+        .profile-pic { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
+        .nav-tabs { display: flex; gap: 30px; }
+        .nav-tab { font-size: 20px; color: #b0b0b0; position: relative; cursor: pointer; padding-bottom: 10px; }
+        .nav-tab.active { color: #00a8ff; }
+        .nav-tab.active::after { content: ''; position: absolute; bottom: -1px; left: -10px; right: -10px; height: 3px; background-color: #00a8ff; border-radius: 2px; }
+        .badge { position: absolute; top: -8px; right: -12px; background-color: #4cd137; color: white; font-size: 10px; padding: 2px 5px; border-radius: 10px; border: 2px solid white; }
+        
+        /* Stories Section */
+        .stories-container { display: flex; padding: 15px; gap: 15px; overflow-x: auto; border-bottom: 1px solid #f0f0f0; }
+        .stories-container::-webkit-scrollbar { display: none; }
+        .story-item { display: flex; flex-direction: column; align-items: center; cursor: pointer; position: relative; }
+        .story-circle { width: 60px; height: 60px; border-radius: 50%; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; position: relative; margin-bottom: 5px; border: 2px solid #00a8ff; padding: 2px;}
+        .story-circle img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .add-story-icon { font-size: 24px; color: #7f8fa6; }
+        .add-plus { position: absolute; bottom: 0; right: 0; background: #00a8ff; color: white; font-size: 12px; width: 20px; height: 20px; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid white; }
+        .story-text { font-size: 12px; color: #333; }
+        
+        /* Chat List Section */
+        .chat-list { flex: 1; overflow-y: auto; padding-bottom: 60px; }
+        .chat-item { display: flex; align-items: center; padding: 15px; border-bottom: 1px solid #f9f9f9; cursor: pointer; transition: background 0.2s; }
+        .chat-item:hover { background-color: #f0f8ff; }
+        .chat-avatar { width: 50px; height: 50px; border-radius: 50%; background-color: #ddd; margin-right: 15px; display: flex; justify-content: center; align-items: center; font-size: 20px; color: white; }
+        .chat-info { flex: 1; }
+        .chat-name { font-size: 16px; font-weight: bold; color: #333; margin-bottom: 5px; }
+        .chat-msg { font-size: 14px; color: #777; }
+        
+        /* Bottom Bar */
+        .bottom-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; border-top: 1px solid #eee; background: white; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
+        .bottom-icon { font-size: 24px; color: #00a8ff; cursor: pointer; }
+
+        /* --- STORY VIEWER CSS --- */
+        #story-viewer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 100; display: none; flex-direction: column; }
+        .story-header { position: absolute; top: 20px; left: 0; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; z-index: 101; color: white; font-size: 24px; }
+        #story-video { width: 100%; height: 100%; object-fit: cover; }
+
+        /* --- CHAT INBOX CSS --- */
+        #chat-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #f5f5f5; z-index: 50; display: none; flex-direction: column; transform: translateX(100%); transition: transform 0.3s ease-in-out; }
+        #chat-screen.open { transform: translateX(0); }
+        .chat-header { background: white; height: 60px; display: flex; align-items: center; padding: 0 15px; border-bottom: 1px solid #ddd; gap: 15px; }
+        .back-btn { font-size: 20px; cursor: pointer; color: #00a8ff; }
+        .chat-user-info { flex: 1; display: flex; align-items: center; gap: 10px; }
+        .chat-user-info img { width: 35px; height: 35px; border-radius: 50%; }
+        .chat-user-name { font-size: 16px; font-weight: bold; }
+        .call-icons { display: flex; gap: 20px; font-size: 20px; color: #00a8ff; cursor: pointer; }
+        
+        .chat-body { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg-bubble { max-width: 70%; padding: 10px 15px; border-radius: 20px; font-size: 14px; }
+        .msg-left { background: white; align-self: flex-start; border-bottom-left-radius: 2px; border: 1px solid #eee;}
+        .msg-right { background: #00a8ff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+
+        .chat-input-area { height: 60px; background: white; border-top: 1px solid #ddd; display: flex; align-items: center; padding: 0 10px; gap: 10px; }
+        .input-icon { font-size: 22px; color: #7f8fa6; cursor: pointer; }
+        .msg-input { flex: 1; height: 40px; border-radius: 20px; border: 1px solid #ddd; padding: 0 15px; font-size: 15px; outline: none; }
+        .send-btn { background: #00a8ff; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; border: none; font-size: 16px;}
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <!-- HOME SCREEN -->
+    <div id="home-screen" style="display: flex; flex-direction: column; height: 100%;">
+        <!-- Top Header -->
+        <div class="header">
+            <img src="my-logo.jpg" alt="Profile" class="profile-pic" onerror="this.src='https://via.placeholder.com/35'">
+            <div class="nav-tabs">
+                <i class="fa-solid fa-comment nav-tab active"></i>
+                <i class="fa-solid fa-layer-group nav-tab"></i>
+                <div style="position: relative;">
+                    <i class="fa-solid fa-user nav-tab"></i>
+                    <span class="badge">47</span>
+                </div>
+            </div>
+            <div style="width: 35px;"></div> <!-- Spacer for balance -->
+        </div>
+
+        <!-- Stories Section -->
+        <div class="stories-container">
+            <div class="story-item" onclick="startStories()">
+                <div class="story-circle" style="border-color: #eee;">
+                    <i class="fa-solid fa-camera add-story-icon"></i>
+                    <div class="add-plus"><i class="fa-solid fa-plus"></i></div>
+                </div>
+                <span class="story-text">Add a story</span>
+            </div>
+            
+            <!-- Follower stories can be added here -->
+            <div class="story-item" onclick="startStories()">
+                <div class="story-circle">
+                    <img src="https://via.placeholder.com/60/00a8ff/ffffff?text=imo" alt="imo">
+                </div>
+                <span class="story-text">Marketpla..</span>
+            </div>
+        </div>
+
+        <!-- Chat List -->
+        <div class="chat-list" id="chat-list">
+            <!-- Dynamic chats will load here -->
+        </div>
+
+        <!-- Bottom Bar -->
+        <div class="bottom-bar">
+            <!-- Plus Button: Used to simulate someone following/adding you -->
+            <i class="fa-solid fa-plus bottom-icon" onclick="addNewFollower()" title="Add New Follower"></i>
+            <i class="fa-solid fa-magnifying-glass bottom-icon"></i>
+        </div>
+    </div>
+
+    <!-- STORY VIEWER SCREEN -->
+    <div id="story-viewer">
+        <div class="story-header">
+            <span style="font-size: 16px; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 10px;">My Story</span>
+            <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="closeStories()"></i>
+        </div>
+        <video id="story-video" playsinline></video>
+    </div>
+
+    <!-- CHAT INBOX SCREEN -->
+    <div id="chat-screen">
+        <div class="chat-header">
+            <i class="fa-solid fa-arrow-left back-btn" onclick="closeChat()"></i>
+            <div class="chat-user-info">
+                <div class="chat-avatar" style="width:35px; height:35px; background: #00a8ff; font-size:16px;" id="chat-avatar-icon">U</div>
+                <span class="chat-user-name" id="chat-user-name">User Name</span>
+            </div>
+            <div class="call-icons">
+                <i class="fa-solid fa-phone" onclick="alert('Calling...')"></i>
+                <i class="fa-solid fa-video" onclick="alert('Video calling...')"></i>
+            </div>
+        </div>
+        
+        <div class="chat-body" id="chat-body">
+            <!-- Messages will appear here -->
+        </div>
+
+        <div class="chat-input-area">
+            <i class="fa-solid fa-circle-plus input-icon" onclick="alert('Open Attachment / Location')"></i>
+            <i class="fa-solid fa-image input-icon" onclick="alert('Select Image')"></i>
+            <i class="fa-solid fa-microphone input-icon" onclick="alert('Recording Voice...')"></i>
+            <input type="text" class="msg-input" id="msg-input" placeholder="Type a message...">
+            <button class="send-btn" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- STORY LOGIC ---
+    const storyVideos =[
+        'my-story1.mp4',
+        'my-story2.mp4',
+        'my-story3.mp4',
+        'my-story4.mp4',
+        'my-story5.mp4'
+    ];
+    let currentStoryIndex = 0;
+    const storyViewer = document.getElementById('story-viewer');
+    const storyVideoElement = document.getElementById('story-video');
+
+    function startStories() {
+        currentStoryIndex = 0;
+        storyViewer.style.display = 'flex';
+        playCurrentStory();
+    }
+
+    function playCurrentStory() {
+        if (currentStoryIndex < storyVideos.length) {
+            storyVideoElement.src = storyVideos[currentStoryIndex];
+            storyVideoElement.play().catch(e => {
+                console.log("Video not found or autoplay blocked. Create my-story1.mp4 to test.");
+                // If video fails, skip to next after 2 seconds for demo purposes
+                setTimeout(nextStory, 2000);
+            });
+        } else {
+            closeStories();
+        }
+    }
+
+    function nextStory() {
+        currentStoryIndex++;
+        playCurrentStory();
+    }
+
+    storyVideoElement.onended = nextStory;
+
+    function closeStories() {
+        storyViewer.style.display = 'none';
+        storyVideoElement.pause();
+        storyVideoElement.src = '';
+    }
+
+    // --- FOLLOW / CHAT LIST LOGIC ---
+    const chatListElement = document.getElementById('chat-list');
+    let followerCount = 0;
+
+    // Simulate someone following/adding you
+    function addNewFollower() {
+        followerCount++;
+        const userName = `New Friend ${followerCount}`;
+        
+        const chatItem = document.createElement('div');
+        chatItem.className = 'chat-item';
+        // Pass data to openChat function
+        chatItem.onclick = () => openChat(userName);
+        
+        chatItem.innerHTML = `
+            <div class="chat-avatar" style="background-color: hsl(${Math.random() * 360}, 70%, 60%);">
+                ${userName.charAt(0)}
+            </div>
+            <div class="chat-info">
+                <div class="chat-name">${userName}</div>
+                <div class="chat-msg">Started following you</div>
+            </div>
+        `;
+        
+        // Add to top of the list
+        chatListElement.prepend(chatItem);
+        alert(`${userName} followed you and is added to your list!`);
+    }
+
+    // --- CHAT INBOX LOGIC ---
+    const chatScreen = document.getElementById('chat-screen');
+    const chatUserName = document.getElementById('chat-user-name');
+    const chatAvatarIcon = document.getElementById('chat-avatar-icon');
+    const chatBody = document.getElementById('chat-body');
+    const msgInput = document.getElementById('msg-input');
+
+    function openChat(name) {
+        chatUserName.innerText = name;
+        chatAvatarIcon.innerText = name.charAt(0);
+        chatBody.innerHTML = `
+            <div class="msg-bubble msg-left">Hello! I just followed you.</div>
+        `; // Clear previous chat and add default
+        chatScreen.style.display = 'flex';
+        // Small delay for sliding animation effect
+        setTimeout(() => {
+            chatScreen.classList.add('open');
+        }, 10);
+    }
+
+    function closeChat() {
+        chatScreen.classList.remove('open');
+        setTimeout(() => {
+            chatScreen.style.display = 'none';
+        }, 300);
+    }
+
+    function sendMessage() {
+        const text = msgInput.value.trim();
+        if (text === '') return;
+
+        // Add my message
+        const myMsg = document.createElement('div');
+        myMsg.className = 'msg-bubble msg-right';
+        myMsg.innerText = text;
+        chatBody.appendChild(myMsg);
+
+        msgInput.value = '';
+        chatBody.scrollTop = chatBody.scrollHeight; // Scroll to bottom
+
+        // Auto reply simulation after 1 second
+        setTimeout(() => {
+            const replyMsg = document.createElement('div');
+            replyMsg.className = 'msg-bubble msg-left';
+            replyMsg.innerText = "Okay, nice to meet you!";
+            chatBody.appendChild(replyMsg);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }, 1000);
+    }
+
+    // Enter key to send message
+    msgInput.addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            sendMessage();
+        }
+    });
+
+</script>
+</body>
+</html>
